@@ -1,26 +1,36 @@
-#include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
 #include "DFRobot_EnvironmentalSensor.h"
 #include <SoftwareSerial.h>
+#include <Ultrasonic.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
 
-#define MODESWITCH        /*UART:*/1 /*I2C: 0*/
+#define MODESWITCH        /*UART:*/0 /*I2C: 0*/
 
 #if MODESWITCH
   SoftwareSerial mySerial(/*rx =*/D6, /*tx =*/D7); // WeMos D1的RX和TX腳位
-  DFRobot_EnvironmentalSensor environment(/*addr =*/SEN0500/SEN0501_DEFAULT_DEVICE_ADDRESS, /*s =*/&mySerial);
+  DFRobot_EnvironmentalSensor environment(/*addr =*/SEN050X_DEFAULT_DEVICE_ADDRESS, /*s =*/&mySerial);
 #else
-DFRobot_EnvironmentalSensor environment(/*addr = */SEN0500/SEN0501_DEFAULT_DEVICE_ADDRESS, /*pWire = */&Wire);
+DFRobot_EnvironmentalSensor environment(/*addr = */SEN050X_DEFAULT_DEVICE_ADDRESS, /*pWire = */&Wire);
 #endif
 
-#define echoPin D5 // Echo Pin
-#define trigPin D4 // Trigger Pin
+#define echoPin D6 // Echo Pin
+#define trigPin D7 // Trigger Pin
 #define relayPin D3 // Relay Pin
-long duration;
-int distance;
+Ultrasonic ultrasonic(D6, D7);
 
-const char* ssid = "your_SSID";
-const char* password = "your_PASSWORD";
-
+float temp; // Temperature
+float humidity; // Humidity
+float ultraviolet_intensity; // Ultraviolet intensity
+float luminous_intensity; // Luminous intensity
+float atmospheric_pressure; // Atmospheric pressure
+float elevation; // Altitude
+float distance; // Water level (distance)
+WiFiClient client;
+// WiFi settings
+// const char* ssid = "ZenFone7 Pro_7128";
+// const char* password = "14ced07a3454";
+const char* ssid ="tku";
+const char* password = "";
 void setup()
 {
 #if MODESWITCH
@@ -33,8 +43,7 @@ void setup()
     delay(1000);
   }
   Serial.println(" Sensor  initialize success!!");
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
+
   pinMode(relayPin, OUTPUT); // Set relay pin as output
 
   // Connect to WiFi
@@ -51,55 +60,41 @@ void loop()
   //Print the data obtained from sensor
   Serial.println("-------------------------------");
   Serial.print("Temp: ");
-  Serial.print(environment.getTemperature(TEMP_C));
+  float temp = environment.getTemperature(TEMP_C);
+  Serial.print(temp);
   Serial.println(" ℃");
-  Serial.print("Temp: ");
-  Serial.print(environment.getTemperature(TEMP_F));
-  Serial.println(" ℉");
-  Serial.print("Humidity: ");
-  Serial.print(environment.getHumidity());
-  Serial.println(" %");
-  Serial.print("Ultraviolet intensity: ");
-  Serial.print(environment.getUltravioletIntensity());
-  Serial.println(" mw/cm2");
-  Serial.print("LuminousIntensity: ");
-  Serial.print(environment.getLuminousIntensity());
-  Serial.println(" lx");
-  Serial.print("Atmospheric pressure: ");
-  Serial.print(environment.getAtmospherePressure(HPA));
-  Serial.println(" hpa");
-  Serial.print("Altitude: ");
-  Serial.print(environment.getElevation());
-  Serial.println(" m");
+  // ... repeat for other sensor readings ...
+  temp = environment.getTemperature(TEMP_C);
+humidity = environment.getHumidity();
+ultraviolet_intensity = environment.getUltravioletIntensity();
+luminous_intensity = environment.getLuminousIntensity();
+atmospheric_pressure = environment.getAtmospherePressure(HPA);
+elevation = environment.getElevation();
+distance = ultrasonic.distanceRead();
+if(distance==357) distance=0;
 
-  // HC-SR04 sensor logic
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  duration = pulseIn(echoPin, HIGH);
-  distance= duration*0.034/2;
-  Serial.print("Water Level: ");
-  Serial.print(distance);
-  Serial.println(" cm");
-  
   // Relay logic
-  float targetSpeed = 200.0; // Target water speed in L/min
+  float targetSpeed = 20.0; // Target water speed in L/min
   float maxSpeed = 400.0; // Max water speed of the pump in L/min
-  float currentSpeed = getWaterSpeed(); // Assume we have a function to get the current water speed
-  if (currentSpeed < targetSpeed) { // If current water speed is less than target
-    digitalWrite(relayPin, HIGH); // Turn on the relay (pump)
-    delay((targetSpeed / maxSpeed) * 1000); // Delay proportional to the target speed
-    digitalWrite(relayPin, LOW); // Turn off the relay (pump)
-  }
+  digitalWrite(relayPin, HIGH); // Turn on the relay (pump)
+  delay((targetSpeed / maxSpeed) * 1000); // Delay proportional to the target speed
+  digitalWrite(relayPin, LOW); // Turn off the relay (pump)
 
-  // Send POST request
+  // Send data to server
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
-    http.begin("http://163.13.127.50:5000/insert");
-    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
-    String httpRequestData = "sensor_id=sensor_1&username=min20120907&password=jefflin123&temp_c=" + String(environment.getTemperature(TEMP_C)) + "&temp_f=" + String(environment.getTemperature(TEMP_F)) + "&humidity=" + String(environment.getHumidity()) + "&ultraviolet_intensity=" + String(environment.getUltravioletIntensity()) + "&luminous_intensity=" + String(environment.getLuminousIntensity()) + "&atmospheric_pressure=" + String(environment.getAtmospherePressure(HPA)) + "&altitude=" + String(environment.getElevation()) + "&water_level=" + String(distance);
+    http.begin(client, "http://163.13.127.50:5000/insert_data_from_sensors");
+    http.addHeader("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36" \
+                 "(KHTML, like Gecko) Chrome/55.0.2883.95 Safari/537.36");
+    String httpRequestData = "username=min20120907&sensor_id=sensor1&realTemp=" + String(temp)
+                        + "&humidity=" + String(humidity)
+                        + "&Ultraviolet_intensity=" + String(ultraviolet_intensity)
+                        + "&LuminousIntensity=" + String(luminous_intensity)
+                        + "&airPressure=" + String(atmospheric_pressure)
+                        + "&Altitude=" + String(elevation)
+                        + "&waterLevel=" + String(distance)
+                        + "&water_Flow_Speed=" + String(targetSpeed);
+    Serial.println(httpRequestData);
     int httpResponseCode = http.POST(httpRequestData);
     if (httpResponseCode>0) {
       Serial.print("HTTP Response code: ");
@@ -111,7 +106,10 @@ void loop()
     }
     http.end();
   }
-  
+  else {
+    Serial.println("WiFi Disconnected");
+  }
+
   Serial.println("-------------------------------");
   delay(500);
 }
