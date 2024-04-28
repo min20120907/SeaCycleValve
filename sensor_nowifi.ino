@@ -1,18 +1,19 @@
 #include "DFRobot_EnvironmentalSensor.h"
 #include <SoftwareSerial.h>
-
-#define MODESWITCH        /*UART:*/1 /*I2C: 0*/
+#include <Ultrasonic.h>
+#define MODESWITCH        /*UART:*/0 /*I2C: 0*/
 
 #if MODESWITCH
   SoftwareSerial mySerial(/*rx =*/D6, /*tx =*/D7); // WeMos D1的RX和TX腳位
-  DFRobot_EnvironmentalSensor environment(/*addr =*/SEN0500/SEN0501_DEFAULT_DEVICE_ADDRESS, /*s =*/&mySerial);
+  DFRobot_EnvironmentalSensor environment(/*addr =*/SEN050X_DEFAULT_DEVICE_ADDRESS, /*s =*/&mySerial);
 #else
-DFRobot_EnvironmentalSensor environment(/*addr = */SEN0500/SEN0501_DEFAULT_DEVICE_ADDRESS, /*pWire = */&Wire);
+DFRobot_EnvironmentalSensor environment(/*addr = */SEN050X_DEFAULT_DEVICE_ADDRESS, /*pWire = */&Wire);
 #endif
 
-#define echoPin D5 // Echo Pin
-#define trigPin D4 // Trigger Pin
+#define echoPin D6 // Echo Pin
+#define trigPin D7 // Trigger Pin
 #define relayPin D3 // Relay Pin
+Ultrasonic ultrasonic(D6, D7);
 long duration;
 int distance;
 
@@ -28,8 +29,7 @@ void setup()
     delay(1000);
   }
   Serial.println(" Sensor  initialize success!!");
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
+
   pinMode(relayPin, OUTPUT); // Set relay pin as output
 }
 
@@ -59,27 +59,21 @@ void loop()
   Serial.print(environment.getElevation());
   Serial.println(" m");
 
-  // HC-SR04 sensor logic
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPin, LOW);
-  duration = pulseIn(echoPin, HIGH);
-  distance= duration*0.034/2;
+  distance= ultrasonic.distanceRead();
+  if(distance==357) distance=0;
   Serial.print("Water Level: ");
   Serial.print(distance);
   Serial.println(" cm");
   
   // Relay logic
-  float targetSpeed = 200.0; // Target water speed in L/min
+  float targetSpeed = 20.0; // Target water speed in L/min
   float maxSpeed = 400.0; // Max water speed of the pump in L/min
-  float currentSpeed = getWaterSpeed(); // Assume we have a function to get the current water speed
-  if (currentSpeed < targetSpeed) { // If current water speed is less than target
+  //float currentSpeed = getWaterSpeed(); // Assume we have a function to get the current water speed
+  //if (currentSpeed < targetSpeed) { // If current water speed is less than target
     digitalWrite(relayPin, HIGH); // Turn on the relay (pump)
     delay((targetSpeed / maxSpeed) * 1000); // Delay proportional to the target speed
     digitalWrite(relayPin, LOW); // Turn off the relay (pump)
-  }
+  //}
   
   Serial.println("-------------------------------");
   delay(500);
