@@ -22,13 +22,12 @@ float temp; // Temperature
 float humidity; // Humidity
 float ultraviolet_intensity; // Ultraviolet intensity
 float luminous_intensity; // Luminous intensity
-float atmospheric_pressure; // Atmospheric pressure
+float airpressure; // Atmospheric pressure
 float elevation; // Altitude
 float distance; // Water level (distance)
 WiFiClient client;
 // WiFi settings
-// const char* ssid = "ZenFone7 Pro_7128";
-// const char* password = "14ced07a3454";
+
 const char* ssid ="tku";
 const char* password = "";
 void setup()
@@ -68,7 +67,7 @@ void loop()
 humidity = environment.getHumidity();
 ultraviolet_intensity = environment.getUltravioletIntensity();
 luminous_intensity = environment.getLuminousIntensity();
-atmospheric_pressure = environment.getAtmospherePressure(HPA);
+airpressure = environment.getAtmospherePressure(HPA);
 elevation = environment.getElevation();
 distance = ultrasonic.distanceRead();
 if(distance==357) distance=0;
@@ -90,9 +89,9 @@ if(distance==357) distance=0;
                         + "&humidity=" + String(humidity)
                         + "&Ultraviolet_intensity=" + String(ultraviolet_intensity)
                         + "&LuminousIntensity=" + String(luminous_intensity)
-                        + "&airPressure=" + String(atmospheric_pressure)
+                        + "&airPressure=" + String(airpressure)
                         + "&Altitude=" + String(elevation)
-                        + "&waterLevel=" + String(distance)
+                        + "&waterLevel=" + String(8-distance)
                         + "&water_Flow_Speed=" + String(targetSpeed);
     Serial.println(httpRequestData);
     int httpResponseCode = http.POST(httpRequestData);
