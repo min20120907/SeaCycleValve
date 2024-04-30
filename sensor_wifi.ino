@@ -27,9 +27,10 @@ float elevation; // Altitude
 float distance; // Water level (distance)
 WiFiClient client;
 // WiFi settings
-
-const char* ssid ="tku";
-const char* password = "";
+const char* ssid = "ZenFone7 Pro_7128";
+const char* password = "14ced07a3454";
+// const char* ssid ="tku";
+// const char* password = "";
 void setup()
 {
 #if MODESWITCH
@@ -85,13 +86,15 @@ if(distance==357) distance=0;
     http.begin(client, "http://163.13.127.50:5000/insert_data_from_sensors");
     http.addHeader("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36" \
                  "(KHTML, like Gecko) Chrome/55.0.2883.95 Safari/537.36");
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+
     String httpRequestData = "username=min20120907&sensor_id=sensor1&realTemp=" + String(temp)
                         + "&humidity=" + String(humidity)
                         + "&Ultraviolet_intensity=" + String(ultraviolet_intensity)
                         + "&LuminousIntensity=" + String(luminous_intensity)
                         + "&airPressure=" + String(airpressure)
                         + "&Altitude=" + String(elevation)
-                        + "&waterLevel=" + String(8-distance)
+                        + "&waterLevel=" + String(7-distance)
                         + "&water_Flow_Speed=" + String(targetSpeed);
     Serial.println(httpRequestData);
     int httpResponseCode = http.POST(httpRequestData);
