@@ -3,6 +3,7 @@
 #include <Ultrasonic.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
+#include <ArduinoJson.h>
 
 #define MODESWITCH        /*UART:*/0 /*I2C: 0*/
 
@@ -31,6 +32,38 @@ const char* ssid = "ZenFone7 Pro_7128";
 const char* password = "14ced07a3454";
 // const char* ssid ="tku";
 // const char* password = "";
+
+int getWaterSpeed() {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(client, "http://163.13.127.50:5000/get_waterspeed");
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+
+    String httpRequestData = "username=min20120907";
+    int httpResponseCode = http.POST(httpRequestData);
+
+    if (httpResponseCode > 0) {
+      String response = http.getString();
+      // Parse the JSON response here and return the water speed
+      // You might need to adjust this depending on the structure of your JSON response
+      DynamicJsonDocument doc(1024);
+      deserializeJson(doc, response);
+      int waterSpeed = doc["waterSpeed"];
+      return waterSpeed;
+    }
+    else {
+      Serial.print("Error code: ");
+      Serial.println(httpResponseCode);
+    }
+    http.end();
+  }
+  else {
+    Serial.println("WiFi Disconnected");
+  }
+  return 400; // Return a default value if unable to get water speed from server
+}
+
+
 void setup()
 {
 #if MODESWITCH
@@ -74,7 +107,7 @@ distance = ultrasonic.distanceRead();
 if(distance==357) distance=0;
 
   // Relay logic
-  float targetSpeed = 20.0; // Target water speed in L/min
+  float targetSpeed = getWaterSpeed(); // Target water speed in L/min
   float maxSpeed = 400.0; // Max water speed of the pump in L/min
   digitalWrite(relayPin, HIGH); // Turn on the relay (pump)
   delay((targetSpeed / maxSpeed) * 1000); // Delay proportional to the target speed
